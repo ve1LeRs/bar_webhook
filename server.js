@@ -103,11 +103,12 @@ app.post('/telegram-webhook', async (req, res) => {
       
       // Маппинг действий на статусы
       const statusMap = {
-        'confirm': 'confirmed',
+        'confirmed': 'confirmed',
         'preparing': 'preparing',
         'ready': 'ready',
         'completed': 'completed',
-        'cancel': 'cancelled'
+        'cancelled': 'cancelled',
+        'test': 'test' // Для тестовых заказов
       };
       
       const newStatus = statusMap[action];
@@ -153,18 +154,27 @@ app.post('/telegram-webhook', async (req, res) => {
       }
       
       // Отправляем подтверждение в Telegram
-      const telegramUrl = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`;
-      await fetch(telegramUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          callback_query_id: callback_query.id,
-          text: `✅ Статус обновлен: ${getStatusText(newStatus)}`,
-          show_alert: false
-        })
-      });
-      
-      console.log(`📤 Подтверждение отправлено в Telegram`);
+      try {
+        const telegramUrl = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`;
+        const response = await fetch(telegramUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            callback_query_id: callback_query.id,
+            text: `✅ Статус обновлен: ${getStatusText(newStatus)}`,
+            show_alert: false
+          })
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ Ошибка отправки ответа в Telegram:', errorText);
+        } else {
+          console.log(`📤 Подтверждение отправлено в Telegram`);
+        }
+      } catch (telegramError) {
+        console.error('❌ Ошибка отправки в Telegram:', telegramError.message);
+      }
       
     } else {
       console.log('📝 Получено обычное сообщение (не callback)');
